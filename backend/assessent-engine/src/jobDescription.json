@@ -1,0 +1,73 @@
+{
+    "software": [
+      {
+        "title": "Junior Software Engineer",
+        "experience": "0-2 years",
+        "description": "We are looking for a Junior Software Engineer to join our team. You will work on building scalable backend services using Python and REST APIs. Basic understanding of data structures, algorithms, and version control systems like Git is required."
+      },
+      {
+        "title": "Mid-Level Backend Developer",
+        "experience": "2-5 years",
+        "description": "We are seeking a backend developer with experience in building RESTful APIs, microservices, and working with cloud platforms. Strong knowledge of databases, concurrency, and system design fundamentals is required."
+      },
+      {
+        "title": "Senior Software Engineer",
+        "experience": "5+ years",
+        "description": "Looking for a Senior Software Engineer with strong expertise in distributed systems, scalable architecture, and system design. You will lead technical projects and mentor junior engineers."
+      }
+    ],
+
+    "electrical": [
+      {
+        "title": "Electrical Engineer (Entry Level)",
+        "experience": "0-2 years",
+        "description": "We are hiring an Electrical Engineer to support circuit analysis, testing, and debugging. Knowledge of basic electrical concepts like Ohm’s Law, KCL, KVL, and AC/DC fundamentals is required."
+      },
+      {
+        "title": "Electrical Systems Engineer",
+        "experience": "2-5 years",
+        "description": "Seeking an Electrical Engineer with experience in power systems, fault analysis, and protection systems. Ability to design and analyze circuits and systems is required."
+      },
+      {
+        "title": "Senior Electrical Engineer",
+        "experience": "5+ years",
+        "description": "Looking for a Senior Electrical Engineer to lead system design, power distribution, and electrical architecture projects. Experience with safety standards and large-scale systems is required."
+      }
+    ],
+
+    "power_electronics": [
+      {
+        "title": "Power Electronics Engineer (Junior)",
+        "experience": "0-2 years",
+        "description": "We are seeking a Power Electronics Engineer with basic understanding of converters, rectifiers, and inverters. Knowledge of PWM techniques and semiconductor devices is required."
+      },
+      {
+        "title": "Power Electronics Engineer",
+        "experience": "2-5 years",
+        "description": "Looking for a Power Electronics Engineer with hands-on experience in DC-DC converters, inverters, and motor drives. Understanding of switching techniques and efficiency optimization is required."
+      },
+      {
+        "title": "Senior Power Electronics Engineer",
+        "experience": "5+ years",
+        "description": "We are hiring a Senior Power Electronics Engineer with expertise in high-power converters, EV systems, and advanced control techniques. Experience in system-level design and optimization is required."
+      }
+    ],
+
+    "electronics": [
+      {
+        "title": "Electronics Engineer (Graduate)",
+        "experience": "0-2 years",
+        "description": "Looking for an Electronics Engineer with knowledge of analog and digital circuits, signal processing basics, and PCB design fundamentals."
+      },
+      {
+        "title": "Embedded Systems Engineer",
+        "experience": "2-5 years",
+        "description": "We are seeking an Embedded Systems Engineer with experience in microcontrollers, C/C++, and real-time systems. Experience with hardware-software integration is required."
+      },
+      {
+        "title": "Senior Electronics Engineer",
+        "experience": "5+ years",
+        "description": "Looking for a Senior Electronics Engineer with strong expertise in hardware design, embedded systems, and system integration. Ability to lead projects and design complex systems is required."
+      }
+    ]
+  }
