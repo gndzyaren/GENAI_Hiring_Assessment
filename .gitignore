@@ -219,3 +219,10 @@ __marimo__/
 
 ./node_modules
 .package-lock.json
+
+# macOS
+.DS_Store
+
+# Local docs
+FEATURES.md
+CODEBASE.md

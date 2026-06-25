@@ -249,6 +249,30 @@ except Exception as e:
     finally { setTranscriptLoading(null) }
   }
 
+  async function downloadResults() {
+    const completed = candidates.filter(c => c.status === "completed" && c.session_id)
+    const rows = await Promise.all(
+      completed.map(async c => {
+        try {
+          const t = await api<{ responses: ResponseItem[] }>(`/exam/${c.session_id}/transcript`)
+          return { ...c, responses: t.responses }
+        } catch {
+          return { ...c, responses: [] }
+        }
+      })
+    )
+    const blob = new Blob(
+      [JSON.stringify({ job_id: jobId, exported_at: new Date().toISOString(), candidates: rows }, null, 2)],
+      { type: "application/json" }
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `results-${jobId.slice(0, 8)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function startExam() {
     setLoading(true); setErr("")
     try {
@@ -420,6 +444,9 @@ except Exception as e:
                   <div style={{ display: "flex", gap: 10 }}>
                     <button style={st.btnGhost} onClick={() => navigator.clipboard.writeText(jobId)}>📋 Copy ID</button>
                     <button style={st.btn} onClick={refreshResults}>{loading ? "Loading…" : "Refresh Results"}</button>
+                    {candidates.length > 0 && (
+                      <button style={st.btnGhost} onClick={downloadResults}>⬇ Download Results</button>
+                    )}
                   </div>
                 </>
               )}
@@ -515,8 +542,19 @@ except Exception as e:
                                   </div>
                                 )}
                                 {!r.options && r.candidate_answer && (
-                                  <div style={{ fontSize: 12, color: c.subtext, fontFamily: "monospace", whiteSpace: "pre-wrap", background: "#0f172a", padding: "8px 10px", borderRadius: 6, marginBottom: 6 }}>
-                                    {r.candidate_answer}
+                                  <div style={{ marginBottom: 6 }}>
+                                    <div style={{ fontSize: 11, color: c.muted, marginBottom: 4, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Candidate's Answer</div>
+                                    <div style={{ fontSize: 12, color: c.subtext, fontFamily: "monospace", whiteSpace: "pre-wrap", background: "#0f172a", padding: "8px 10px", borderRadius: 6 }}>
+                                      {r.candidate_answer}
+                                    </div>
+                                  </div>
+                                )}
+                                {!r.options && r.correct_answer && (
+                                  <div style={{ marginBottom: 6 }}>
+                                    <div style={{ fontSize: 11, color: "#4ade80", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Model Answer / Criteria</div>
+                                    <div style={{ fontSize: 12, color: c.subtext, fontFamily: "monospace", whiteSpace: "pre-wrap", background: "#0f172a", padding: "8px 10px", borderRadius: 6 }}>
+                                      {r.correct_answer}
+                                    </div>
                                   </div>
                                 )}
                                 {r.feedback && (
@@ -596,8 +634,19 @@ except Exception as e:
                 </div>
               )}
 
-              {/* Coding — free text with Pyodide lint */}
-              {!question.options && !feedback && (
+              {/* Numerical — short text input */}
+              {!question.options && !feedback && question.section !== "coding" && (
+                <input
+                  style={{ ...st.input, marginBottom: 8 }}
+                  value={selected}
+                  onChange={e => setSelected(e.target.value)}
+                  placeholder="Enter your answer…"
+                  onKeyDown={e => { if (e.key === "Enter" && selected) submitAnswer() }}
+                />
+              )}
+
+              {/* Coding — large free-text editor with Pyodide lint */}
+              {!question.options && !feedback && question.section === "coding" && (
                 <div>
                   <textarea
                     style={{ ...st.input, height: 220, fontFamily: "monospace", fontSize: 13, marginBottom: 8 }}

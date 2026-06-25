@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import threading
 from datetime import datetime, timedelta
-from collections import Counter
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +40,32 @@ def _to_bank_difficulty(adaptive: int) -> int:
     return 5
 
 
+def _generate_more_for_tier(job_id: str, difficulty: int) -> None:
+    """Background thread: add 30 more questions to an exhausted bank tier."""
+    db = next(database.get_db())
+    try:
+        job = db.query(models.Job).filter(models.Job.id == job_id).first()
+        if not job:
+            return
+        questions = llm.generate_question_bank(job.job_context or {}, difficulty, count=30)
+        for q in questions:
+            bq = models.BankQuestion(
+                job_id=job_id,
+                section="screening",
+                difficulty=difficulty,
+                topic=q.get("topic"),
+                question_text=q["question_text"],
+                options=q.get("options"),
+                correct_answer=q["correct_answer"],
+            )
+            db.add(bq)
+        db.commit()
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
 def _select_from_bank(
     db: Session,
     job_id: str,
@@ -59,7 +85,10 @@ def _select_from_bank(
         .first()
     )
     if q is None and asked_ids:
-        # All questions at this tier exhausted — fall back without dedup
+        # Tier exhausted — generate more in background, fall back for this request
+        threading.Thread(
+            target=_generate_more_for_tier, args=(job_id, tier), daemon=True
+        ).start()
         q = (
             db.query(models.BankQuestion)
             .filter(
@@ -407,7 +436,8 @@ def submit_answer(
     pending = _pending_question(db, session_id)
 
     # Score the answer
-    if session.current_section == "coding":
+    if session.current_section == "coding" or (session.current_section == "screening" and not pending.options):
+        # Coding or numerical — LLM evaluation
         result = llm.evaluate_coding_answer(
             question_text=pending.question_text,
             correct_answer=pending.correct_answer,
@@ -417,14 +447,29 @@ def submit_answer(
         score = result["score"]
         feedback = result["feedback"]
     else:
+        # MCQ — exact letter match
         submitted = request.answer.strip().upper()[:1]
         is_correct = submitted == pending.correct_answer.strip().upper()
         score = 1.0 if is_correct else 0.0
-        feedback = (
-            f"Correct! The answer is {pending.correct_answer}."
-            if is_correct
-            else f"Incorrect. The correct answer is {pending.correct_answer}."
-        )
+        if is_correct:
+            feedback = "Correct!"
+        else:
+            topic = "this topic"
+            if pending.bank_question_id:
+                bq = db.query(models.BankQuestion).filter(
+                    models.BankQuestion.id == pending.bank_question_id
+                ).first()
+                if bq and bq.topic:
+                    topic = bq.topic
+            chosen_option = request.answer
+            if pending.options:
+                for opt in pending.options:
+                    if opt.strip().upper().startswith(submitted):
+                        chosen_option = opt
+                        break
+            feedback = llm.generate_incorrect_feedback(
+                pending.question_text, chosen_option, topic
+            )
 
     pending.candidate_answer = request.answer
     pending.is_correct = is_correct
