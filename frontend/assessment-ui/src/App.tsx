@@ -31,6 +31,13 @@ interface Results {
   status: string
 }
 
+interface JobListing {
+  job_id: string
+  title: string
+  include_coding: boolean
+  created_at: string
+}
+
 interface Candidate {
   candidate_id: string
   name: string
@@ -134,6 +141,9 @@ export default function App() {
   const [transcriptLoading, setTranscriptLoading] = useState<string | null>(null)
 
   // Candidate
+  const [jobListings, setJobListings] = useState<JobListing[]>([])
+  const [jobListingsLoading, setJobListingsLoading] = useState(false)
+  const [selectedJob, setSelectedJob] = useState<JobListing | null>(null)
   const [joinJobId, setJoinJobId] = useState("")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -167,6 +177,11 @@ export default function App() {
       } catch { /* Pyodide unavailable — coding lint just won't show */ }
     })()
   }, [])
+
+  // Fetch job listings when candidate page is opened
+  useEffect(() => {
+    if (page === "candidate-join" && !selectedJob) fetchJobListings()
+  }, [page])
 
   // Lint on code change (debounced)
   useEffect(() => {
@@ -271,6 +286,15 @@ except Exception as e:
     a.download = `results-${jobId.slice(0, 8)}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function fetchJobListings() {
+    setJobListingsLoading(true)
+    try {
+      const data = await api<JobListing[]>("/jobs")
+      setJobListings(data)
+    } catch { /* ignore */ }
+    finally { setJobListingsLoading(false) }
   }
 
   async function startExam() {
@@ -582,20 +606,63 @@ except Exception as e:
 
         {/* Candidate join */}
         {page === "candidate-join" && (
-          <div style={{ maxWidth: 480 }}>
-            <h2 style={{ marginTop: 0, marginBottom: 24 }}>Start Assessment</h2>
-            <div style={st.card}>
-              <label style={st.label}>Job ID</label>
-              <input style={st.input} value={joinJobId} onChange={e => setJoinJobId(e.target.value)} placeholder="Paste the Job ID you received" />
-              <label style={st.label}>Your Name</label>
-              <input style={st.input} value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
-              <label style={st.label}>Your Email</label>
-              <input style={st.input} value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" />
-              {err && <p style={{ color: c.red, fontSize: 13, marginBottom: 12 }}>{err}</p>}
-              <button style={st.btn} onClick={startExam} disabled={loading || !joinJobId || !name || !email}>
-                {loading ? "Starting…" : "Begin Exam →"}
-              </button>
-            </div>
+          <div style={{ maxWidth: 560 }}>
+            <h2 style={{ marginTop: 0, marginBottom: 6 }}>Open Positions</h2>
+            <p style={{ color: c.subtext, marginBottom: 24, fontSize: 14 }}>Select a role to begin your assessment.</p>
+
+            {/* Job listing */}
+            {!selectedJob && (
+              <div>
+                {jobListingsLoading && <p style={{ color: c.muted, fontSize: 14 }}>Loading positions…</p>}
+                {!jobListingsLoading && jobListings.length === 0 && (
+                  <p style={{ color: c.muted, fontSize: 14 }}>No open positions at the moment.</p>
+                )}
+                {jobListings.map(j => (
+                  <div
+                    key={j.job_id}
+                    style={{ ...st.card, cursor: "pointer", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    onClick={() => { setSelectedJob(j); setJoinJobId(j.job_id) }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{j.title}</div>
+                      <div style={{ fontSize: 12, color: c.muted }}>
+                        {j.include_coding ? "Screening + Coding" : "Screening only"} · Posted {new Date(j.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <span style={{ color: c.accent, fontSize: 18 }}>→</span>
+                  </div>
+                ))}
+                <button style={{ ...st.btnGhost, width: "auto", marginTop: 8 }} onClick={fetchJobListings}>
+                  {jobListingsLoading ? "Loading…" : "Refresh"}
+                </button>
+              </div>
+            )}
+
+            {/* Application form — shown after selecting a job */}
+            {selectedJob && (
+              <div>
+                <button style={{ ...st.btnGhost, width: "auto", marginBottom: 16 }} onClick={() => { setSelectedJob(null); setJoinJobId(""); setErr("") }}>
+                  ← Back to positions
+                </button>
+                <div style={st.card}>
+                  <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${c.border}` }}>
+                    <div style={{ fontSize: 11, color: c.muted, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Applying for</div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{selectedJob.title}</div>
+                    <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>
+                      {selectedJob.include_coding ? "Screening + Coding assessment" : "Screening assessment only"}
+                    </div>
+                  </div>
+                  <label style={st.label}>Your Name</label>
+                  <input style={st.input} value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
+                  <label style={st.label}>Your Email</label>
+                  <input style={st.input} value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" />
+                  {err && <p style={{ color: c.red, fontSize: 13, marginBottom: 12 }}>{err}</p>}
+                  <button style={st.btn} onClick={startExam} disabled={loading || !name || !email}>
+                    {loading ? "Starting…" : "Begin Assessment →"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

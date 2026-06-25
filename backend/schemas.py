@@ -9,6 +9,13 @@ class CreateJobRequest(BaseModel):
     include_coding: bool = True
 
 
+class JobListItem(BaseModel):
+    job_id: str
+    title: str
+    include_coding: bool
+    created_at: str
+
+
 class JobOut(BaseModel):
     job_id: str
     title: str
