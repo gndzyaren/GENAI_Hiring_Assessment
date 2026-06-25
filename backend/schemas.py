@@ -6,6 +6,7 @@ class CreateJobRequest(BaseModel):
     title: str
     job_description: str
     recruiter_email: EmailStr
+    include_coding: bool = True
 
 
 class JobOut(BaseModel):
@@ -13,6 +14,8 @@ class JobOut(BaseModel):
     title: str
     recruiter_email: str
     status: str
+    include_coding: bool = True
+    bank_status: str = "generating"
     created_at: str
 
 
@@ -24,6 +27,7 @@ class CandidateSummary(BaseModel):
     total_score: Optional[float]
     status: str
     applied_at: str
+    feedback_summary: Optional[dict] = None
 
 
 class JobResultsOut(BaseModel):
@@ -73,6 +77,26 @@ class ExamResults(BaseModel):
     total_score: float
     section_scores: dict[str, float]
     status: str
+    feedback_summary: Optional[dict] = None
+
+
+class ResponseOut(BaseModel):
+    question_number: int
+    section: str
+    difficulty: int
+    question_text: str
+    options: Optional[list[str]] = None
+    candidate_answer: Optional[str]
+    correct_answer: str
+    is_correct: Optional[bool]
+    score: Optional[float]
+    feedback: Optional[str]
+
+
+class TranscriptOut(BaseModel):
+    session_id: str
+    candidate_name: Optional[str]
+    responses: list[ResponseOut]
 
 
 ApplyResponse.model_rebuild()
