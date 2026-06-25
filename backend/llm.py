@@ -1,9 +1,15 @@
 import json
 import random
 import re
+from dotenv import load_dotenv
+load_dotenv()
+
 from openai import OpenAI
 
-client = OpenAI()
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key="your hf-token"  # huggingface.co/settings/tokens
+)
 
 # ---- Helpers ---------------------------------------------------------------
 
@@ -44,7 +50,12 @@ def _shuffle_options(data: dict) -> dict:
     new_letter = _LETTERS[shuffled.index(correct_text)]
     relabelled = [f"{_LETTERS[i]}) {opt.split(') ', 1)[-1]}" for i, opt in enumerate(shuffled)]
 
-    return {**data, "options": relabelled, "correct_answer": new_letter}
+    return {
+        **data,
+        "options": relabelled,
+        "correct_answer": new_letter,
+        "correct_answer_text": data.get("correct_answer_text", ""),  # passes through from LLM
+    }
 
 
 # ---- Prompts ---------------------------------------------------------------
@@ -62,19 +73,23 @@ Return ONLY valid JSON — no markdown, no extra text:
 
 _BATCH_MC_SYSTEM = """\
 You generate multiple-choice exam questions for job candidates.
-Return ONLY a valid JSON array of exactly {count} questions — no markdown, no extra text:
+Return ONLY a valid JSON array of exactly {count} questions — no markdown, 
+return correct_answer_text to describe the of the right answer when wrong choice selected, 
+no extra text:
 [
   {{
     "topic": "concise topic label (2-4 words)",
     "question_text": "...",
     "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-    "correct_answer": "A"
+    "correct_answer": "A",
+    "correct_answer_text": "Explanation of why this answer is correct and why the others are wrong."
   }}
 ]
 Requirements:
 - Vary topics broadly — no two questions should test the same concept
 - Difficulty should match the specified level throughout
-- Each question must have exactly one clearly correct answer"""
+- Each question must have exactly one clearly correct answer
+- correct_answer_text should be 1-3 sentences, educational and constructive"""
 
 _CODING_BATCH_SYSTEM = """\
 You generate coding assessment questions for job candidates.
@@ -117,7 +132,7 @@ Keep each area concise (2-5 words). List 2-4 items per category based on evidenc
 
 def parse_job_description(job_description: str) -> dict:
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="meta-llama/Llama-3.3-70B-Instruct",
         max_tokens=512,
         messages=[
             {"role": "system", "content": _PARSE_SYSTEM},
@@ -144,7 +159,7 @@ def generate_question_bank(job_context: dict, difficulty: int, count: int = 30) 
     )
     system = _BATCH_MC_SYSTEM.format(count=count)
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="meta-llama/Llama-3.3-70B-Instruct",
         max_tokens=8000,
         messages=[
             {"role": "system", "content": system},
@@ -154,6 +169,26 @@ def generate_question_bank(job_context: dict, difficulty: int, count: int = 30) 
     questions = _parse_json_array(response.choices[0].message.content)
     return [_shuffle_options(q) for q in questions]
 
+def explain_answer(question_text, options, correct_answer):
+    prompt = f"""
+                Question:
+                {question_text}
+
+                Options:
+                {options}
+
+                Correct answer:
+                {correct_answer}
+
+                Explain in 2-3 sentences why this answer is correct.
+                """
+
+    response = client.chat.completions.create(
+        model="meta-llama/Llama-3.3-70B-Instruct",
+        messages=[{"role":"user","content":prompt}]
+    )
+
+    return response.choices[0].message.content
 
 def generate_coding_questions(
     job_context: dict,
@@ -178,7 +213,7 @@ def generate_coding_questions(
         f"Return JSON array only."
     )
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="meta-llama/Llama-3.3-70B-Instruct",
         max_tokens=2000,
         messages=[
             {"role": "system", "content": _CODING_BATCH_SYSTEM},
@@ -190,7 +225,7 @@ def generate_coding_questions(
 
 def evaluate_coding_answer(question_text: str, correct_answer: str, candidate_answer: str) -> dict:
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="meta-llama/Llama-3.3-70B-Instruct",
         max_tokens=512,
         messages=[
             {"role": "system", "content": _EVAL_SYSTEM},
@@ -213,7 +248,7 @@ def generate_candidate_feedback(responses: list[dict]) -> dict:
         for r in responses
     ]
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="meta-llama/Llama-3.3-70B-Instruct",
         max_tokens=512,
         messages=[
             {"role": "system", "content": _FEEDBACK_SYSTEM},

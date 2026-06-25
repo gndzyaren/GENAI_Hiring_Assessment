@@ -434,6 +434,18 @@ def submit_answer(
 
     state = exam.advance_session(session, is_correct, db, include_coding=session.include_coding)
 
+    correct_answer_text = None
+    explanation = None
+
+    if not is_correct:
+        correct_answer_text = pending.correct_answer
+
+        explanation = llm.explain_answer(
+            question_text=pending.question_text,
+            options=pending.options,
+            correct_answer=pending.correct_answer,
+        )
+    
     # If we just completed the screening section, generate coding questions
     if state["section_complete"] and not state["exam_complete"] and session.current_section == "coding":
         _transition_to_coding(session, db)
@@ -452,6 +464,8 @@ def submit_answer(
             next_question=_question_out(next_pending, answered_count + 1),
             section_complete=True,
             exam_complete=False,
+            correct_answer_text=correct_answer_text,
+            explanation=explanation
         )
 
     if state["exam_complete"]:
@@ -470,6 +484,7 @@ def submit_answer(
             feedback=feedback,
             section_complete=True,
             exam_complete=True,
+            correct_answer_text=correct_answer_text,
         )
 
     # Still in screening — pick next question from bank
@@ -502,6 +517,7 @@ def submit_answer(
         next_question=_question_out(next_q, answered_count + 1),
         section_complete=state["section_complete"],
         exam_complete=False,
+        correct_answer_text=correct_answer_text,
     )
 
 

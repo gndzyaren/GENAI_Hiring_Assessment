@@ -68,6 +68,8 @@ class AnswerResponse(BaseModel):
     next_question: Optional[QuestionOut] = None
     section_complete: bool = False
     exam_complete: bool = False
+    correct_answer_text: Optional[str] = None
+    explanation: Optional[str] = None
 
 
 class ExamResults(BaseModel):

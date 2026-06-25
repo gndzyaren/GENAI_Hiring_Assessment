@@ -20,6 +20,8 @@ interface AnswerResp {
   next_question: Question | null
   section_complete: boolean
   exam_complete: boolean
+  correct_answer_text?: string
+  explanation?: string
 }
 
 interface Results {
@@ -140,7 +142,12 @@ export default function App() {
   const [sessionId, setSessionId] = useState("")
   const [question, setQuestion] = useState<Question | null>(null)
   const [selected, setSelected] = useState("")
-  const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null)
+  const [feedback, setFeedback] = useState<{
+  text: string
+  correct: boolean
+  correct_answer_text?: string
+  explanation?: string
+} | null>(null)
   const [results, setResults] = useState<Results | null>(null)
 
   // Pyodide (coding syntax check)
@@ -271,7 +278,12 @@ except Exception as e:
         method: "POST",
         body: JSON.stringify({ answer: selected }),
       })
-      setFeedback({ text: data.feedback, correct: data.is_correct })
+      setFeedback({
+        text: data.feedback,
+        correct: data.is_correct,
+        correct_answer_text: data.correct_answer_text,
+        explanation: data.explanation
+      })
       setSelected("")
       setLint("")
 
@@ -613,25 +625,66 @@ except Exception as e:
                 </div>
               )}
 
-              {/* Feedback */}
-              {feedback && (
-                <div style={{ background: feedback.correct ? "#14532d55" : "#450a0a55", border: `1px solid ${feedback.correct ? "#166534" : "#7f1d1d"}`, borderRadius: 8, padding: 16, marginBottom: 4 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6, color: feedback.correct ? c.green : c.red }}>
-                    {feedback.correct ? "✓ Correct" : "✗ Incorrect"}
-                  </div>
-                  <div style={{ fontSize: 14, color: c.subtext, lineHeight: 1.6 }}>{feedback.text}</div>
-                </div>
-              )}
-
-              {!feedback && (
-                <button style={{ ...st.btn, marginTop: 8 }} onClick={submitAnswer} disabled={loading || !selected}>
-                  {loading ? "Submitting…" : "Submit Answer →"}
-                </button>
-              )}
-
-              {err && <p style={{ color: c.red, fontSize: 13, marginTop: 12 }}>{err}</p>}
+        {/* Feedback */}
+        {feedback && (
+          <div
+            style={{
+              background: feedback.correct ? "#14532d55" : "#450a0a55",
+              border: `1px solid ${feedback.correct ? "#166534" : "#7f1d1d"}`,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 4,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: 6,
+                color: feedback.correct ? c.green : c.red,
+              }}
+            >
+              {feedback.correct ? "✓ Correct" : "✗ Incorrect"}
             </div>
+
+            <div
+              style={{
+                fontSize: 14,
+                color: c.subtext,
+                lineHeight: 1.6,
+              }}
+            >
+              {feedback.text}
+            </div>
+
+            {!feedback.correct && feedback.explanation && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: 10,
+                  background: "#0f172a",
+                  borderRadius: 6,
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Why this is correct
+                </div>
+
+                
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Submit button */}
+        {!feedback && (
+          <button
+            style={{ ...st.btn, marginTop: 8 }}
+            onClick={submitAnswer}
+            disabled={loading || !selected}
+          >
+            {loading ? "Submitting…" : "Submit Answer →"}
+          </button>
+          
         )}
 
         {/* Complete */}
