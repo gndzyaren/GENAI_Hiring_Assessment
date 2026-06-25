@@ -163,6 +163,7 @@ export default function App() {
   const [question, setQuestion] = useState<Question | null>(null)
   const [selected, setSelected] = useState("")
   const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null)
+  const [pendingNext, setPendingNext] = useState<{ question: Question | null; examComplete: boolean } | null>(null)
   const [results, setResults] = useState<Results | null>(null)
 
   // Pyodide (coding syntax check)
@@ -342,18 +343,30 @@ except Exception as e:
         body: JSON.stringify({ answer: selected }),
       })
       setFeedback({ text: data.feedback, correct: data.is_correct })
-      setSelected("")
+      setPendingNext({ question: data.next_question ?? null, examComplete: data.exam_complete })
       setLint("")
 
       if (data.exam_complete) {
         const r = await api<Results>(`/exam/${sessionId}/results`)
         setResults(r)
-        setTimeout(() => { setFeedback(null); setPage("complete") }, 1600)
-      } else if (data.next_question) {
-        setTimeout(() => { setFeedback(null); setQuestion(data.next_question) }, 1800)
       }
     } catch (e: any) { setErr(e.message) }
     finally { setLoading(false) }
+  }
+
+  function advanceQuestion() {
+    if (!pendingNext) return
+    if (pendingNext.examComplete) {
+      setFeedback(null)
+      setPendingNext(null)
+      setSelected("")
+      setPage("complete")
+    } else if (pendingNext.question) {
+      setQuestion(pendingNext.question)
+      setFeedback(null)
+      setPendingNext(null)
+      setSelected("")
+    }
   }
 
   // ---- Helpers ------------------------------------------------------------
@@ -744,37 +757,56 @@ except Exception as e:
               <p style={{ fontSize: 16, lineHeight: 1.75, marginTop: 0, marginBottom: 24 }}>{question.question_text}</p>
 
               {/* Multiple choice */}
-              {question.options && !feedback && (
+              {question.options && (
                 <div>
-                  {question.options.map((opt, i) => (
-                    <button key={i} style={st.option(selected === opt[0])} onClick={() => setSelected(opt[0])}>
-                      {opt}
-                    </button>
-                  ))}
+                  {question.options.map((opt, i) => {
+                    const letter = opt[0]
+                    const isChosen = selected === letter
+                    return (
+                      <button
+                        key={i}
+                        style={{
+                          ...st.option(isChosen),
+                          ...(feedback && isChosen ? {
+                            background: feedback.correct ? "#14532d44" : "#450a0a44",
+                            borderColor: feedback.correct ? "#166534" : "#7f1d1d",
+                            color: feedback.correct ? c.green : c.red,
+                          } : {}),
+                          ...(feedback ? { cursor: "default", pointerEvents: "none" as const } : {}),
+                        }}
+                        onClick={() => !feedback && setSelected(letter)}
+                        disabled={!!feedback}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
 
               {/* Numerical — short text input */}
-              {!question.options && !feedback && question.section !== "coding" && (
+              {!question.options && question.section !== "coding" && (
                 <input
-                  style={{ ...st.input, marginBottom: 8 }}
+                  style={{ ...st.input, marginBottom: 8, ...(feedback ? { opacity: 0.6, cursor: "default" } : {}) }}
                   value={selected}
-                  onChange={e => setSelected(e.target.value)}
+                  onChange={e => !feedback && setSelected(e.target.value)}
                   placeholder="Enter your answer…"
-                  onKeyDown={e => { if (e.key === "Enter" && selected) submitAnswer() }}
+                  onKeyDown={e => { if (e.key === "Enter" && selected && !feedback) submitAnswer() }}
+                  readOnly={!!feedback}
                 />
               )}
 
               {/* Coding — large free-text editor with Pyodide lint */}
-              {!question.options && !feedback && question.section === "coding" && (
+              {!question.options && question.section === "coding" && (
                 <div>
                   <textarea
-                    style={{ ...st.input, height: 220, fontFamily: "monospace", fontSize: 13, marginBottom: 8 }}
+                    style={{ ...st.input, height: 220, fontFamily: "monospace", fontSize: 13, marginBottom: 8, ...(feedback ? { opacity: 0.6, cursor: "default" } : {}) }}
                     value={selected}
-                    onChange={e => setSelected(e.target.value)}
+                    onChange={e => !feedback && setSelected(e.target.value)}
                     placeholder="Write your solution here…"
+                    readOnly={!!feedback}
                   />
-                  {lint && (
+                  {lint && !feedback && (
                     <div style={{ fontSize: 12, color: lint.startsWith("✅") ? c.green : c.red, marginBottom: 12 }}>
                       {lint}
                     </div>
@@ -784,7 +816,7 @@ except Exception as e:
 
               {/* Feedback */}
               {feedback && (
-                <div style={{ background: feedback.correct ? "#14532d55" : "#450a0a55", border: `1px solid ${feedback.correct ? "#166534" : "#7f1d1d"}`, borderRadius: 8, padding: 16, marginBottom: 4 }}>
+                <div style={{ background: feedback.correct ? "#14532d55" : "#450a0a55", border: `1px solid ${feedback.correct ? "#166534" : "#7f1d1d"}`, borderRadius: 8, padding: 16, marginTop: 16, marginBottom: 4 }}>
                   <div style={{ fontWeight: 600, marginBottom: 6, color: feedback.correct ? c.green : c.red }}>
                     {feedback.correct ? "✓ Correct" : "✗ Incorrect"}
                   </div>
@@ -795,6 +827,12 @@ except Exception as e:
               {!feedback && (
                 <button style={{ ...st.btn, marginTop: 8 }} onClick={submitAnswer} disabled={loading || !selected}>
                   {loading ? "Submitting…" : "Submit Answer →"}
+                </button>
+              )}
+
+              {feedback && pendingNext && (
+                <button style={{ ...st.btn, marginTop: 12 }} onClick={advanceQuestion}>
+                  {pendingNext.examComplete ? "View Results →" : "Next Question →"}
                 </button>
               )}
 
