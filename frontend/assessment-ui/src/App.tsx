@@ -38,6 +38,16 @@ interface JobListing {
   created_at: string
 }
 
+interface RecruiterJob {
+  job_id: string
+  title: string
+  status: string
+  bank_status: string
+  include_coding: boolean
+  candidate_count: number
+  created_at: string
+}
+
 interface Candidate {
   candidate_id: string
   name: string
@@ -134,6 +144,8 @@ export default function App() {
   const [jobId, setJobId] = useState("")
   const [includeCoding, setIncludeCoding] = useState(true)
   const [bankStatus, setBankStatus] = useState<"generating" | "ready" | "error" | "">("")
+  const [recruiterJobs, setRecruiterJobs] = useState<RecruiterJob[]>([])
+  const [recruiterJobsLoading, setRecruiterJobsLoading] = useState(false)
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const bankPollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const [transcripts, setTranscripts] = useState<Record<string, ResponseItem[]>>({})
@@ -181,6 +193,7 @@ export default function App() {
   // Fetch job listings when candidate page is opened
   useEffect(() => {
     if (page === "candidate-join" && !selectedJob) fetchJobListings()
+    if (page === "recruiter-setup") fetchRecruiterJobs()
   }, [page])
 
   // Lint on code change (debounced)
@@ -209,6 +222,15 @@ except Exception as e:
     const data = await res.json()
     if (!res.ok) throw new Error(data.detail ?? "Request failed")
     return data as T
+  }
+
+  async function fetchRecruiterJobs() {
+    setRecruiterJobsLoading(true)
+    try {
+      const data = await api<RecruiterJob[]>("/recruiter/jobs")
+      setRecruiterJobs(data)
+    } catch { /* ignore */ }
+    finally { setRecruiterJobsLoading(false) }
   }
 
   function startBankPoll(id: string) {
@@ -429,14 +451,45 @@ except Exception as e:
             </div>
 
             <div style={{ ...st.card, marginTop: 8 }}>
-              <div style={{ fontWeight: 600, marginBottom: 12 }}>Already have a job?</div>
-              <label style={st.label}>Job ID</label>
-              <div style={{ display: "flex", gap: 10 }}>
-                <input style={{ ...st.input, marginBottom: 0, flex: 1 }} value={jobId} onChange={e => setJobId(e.target.value)} placeholder="Paste your Job ID" />
-                <button style={st.btn} onClick={() => { if (jobId) { refreshResults(); nav("recruiter-dashboard") } }} disabled={!jobId}>
-                  View Results →
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ fontWeight: 600 }}>Existing Jobs</div>
+                <button style={{ ...st.btnGhost, width: "auto", padding: "4px 10px", fontSize: 12, marginBottom: 0 }} onClick={fetchRecruiterJobs}>
+                  {recruiterJobsLoading ? "Loading…" : "Refresh"}
                 </button>
               </div>
+              {recruiterJobsLoading && <p style={{ color: c.muted, fontSize: 13, margin: 0 }}>Loading…</p>}
+              {!recruiterJobsLoading && recruiterJobs.length === 0 && (
+                <p style={{ color: c.muted, fontSize: 13, margin: 0 }}>No jobs yet.</p>
+              )}
+              {recruiterJobs.map((j, i) => (
+                <div
+                  key={j.job_id}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: i < recruiterJobs.length - 1 ? `1px solid ${c.border}` : "none", cursor: j.bank_status === "ready" ? "pointer" : "default" }}
+                  onClick={() => {
+                    if (j.bank_status !== "ready") return
+                    setJobId(j.job_id)
+                    setBankStatus("ready")
+                    refreshResults()
+                    nav("recruiter-dashboard")
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 500 }}>{j.title}</div>
+                    <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
+                      {j.candidate_count} candidate{j.candidate_count !== 1 ? "s" : ""} · {j.include_coding ? "Screening + Coding" : "Screening only"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: j.status === "closed" ? "#450a0a44" : "#14532d44", color: j.status === "closed" ? "#f87171" : "#4ade80" }}>
+                      {j.status}
+                    </span>
+                    {j.bank_status !== "ready" && (
+                      <span style={{ fontSize: 11, color: c.muted }}>{j.bank_status}</span>
+                    )}
+                    {j.bank_status === "ready" && <span style={{ color: c.accent, fontSize: 14 }}>→</span>}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

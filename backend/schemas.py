@@ -16,6 +16,16 @@ class JobListItem(BaseModel):
     created_at: str
 
 
+class RecruiterJobItem(BaseModel):
+    job_id: str
+    title: str
+    status: str
+    bank_status: str
+    include_coding: bool
+    candidate_count: int
+    created_at: str
+
+
 class JobOut(BaseModel):
     job_id: str
     title: str

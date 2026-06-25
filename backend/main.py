@@ -245,6 +245,23 @@ def _generate_bank(job_id: str) -> None:
 # Recruiter routes
 # ---------------------------------------------------------------------------
 
+@app.get("/recruiter/jobs", response_model=list[schemas.RecruiterJobItem])
+def list_recruiter_jobs(db: Session = Depends(database.get_db)):
+    jobs = db.query(models.Job).order_by(models.Job.created_at.desc()).all()
+    return [
+        schemas.RecruiterJobItem(
+            job_id=j.id,
+            title=j.title,
+            status=j.status,
+            bank_status=j.bank_status,
+            include_coding=j.include_coding,
+            candidate_count=len(j.candidates),
+            created_at=j.created_at.isoformat(),
+        )
+        for j in jobs
+    ]
+
+
 @app.get("/jobs", response_model=list[schemas.JobListItem])
 def list_jobs(db: Session = Depends(database.get_db)):
     jobs = (
