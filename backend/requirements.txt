@@ -1,0 +1,6 @@
+fastapi
+pydantic[email]
+uvicorn[standard]
+sqlalchemy
+anthropic
+python-dotenv
