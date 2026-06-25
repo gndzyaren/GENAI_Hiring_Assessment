@@ -624,7 +624,6 @@ except Exception as e:
                   )}
                 </div>
               )}
-
         {/* Feedback */}
         {feedback && (
           <div
@@ -668,8 +667,9 @@ except Exception as e:
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
                   Why this is correct
                 </div>
-
-                
+                <div style={{ color: c.subtext, fontSize: 13 }}>
+                  {feedback.explanation}
+                </div>                
               </div>
             )}
           </div>
@@ -684,7 +684,9 @@ except Exception as e:
           >
             {loading ? "Submitting…" : "Submit Answer →"}
           </button>
-          
+        )}
+          </div>
+          </div>
         )}
 
         {/* Complete */}
